@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "perceptron"
+version = "0.1.0"
+description = ""
+authors = ["Thomas Breydo <tbreydo@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+maturin = "^0.8.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^20.8b1"
+Sphinx = "^3.4.1"
+mypy = "^0.790"
+
+[build-system]
+requires = ["maturin"]
+build-backend = "maturin"
