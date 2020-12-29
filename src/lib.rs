@@ -1,9 +1,9 @@
 mod perceptron;
 mod sample;
 
-use perceptron::Perceptron;
+pub use perceptron::Perceptron;
 use pyo3::prelude::*;
-use sample::Sample;
+pub use sample::Sample;
 
 /// A Python module implemented in Rust.
 #[pymodule]
