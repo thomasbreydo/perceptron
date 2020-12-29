@@ -1,9 +1,8 @@
-Todo
-====
+To test:
 
-- move cargo toml
+.. code-block:: bash
 
-- gitignore
+    cargo test --no-default-features
 
 Setting up
 ==========

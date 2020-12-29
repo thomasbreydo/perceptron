@@ -1,58 +1,35 @@
+use crate::dot::Dot;
 use crate::sample::Sample;
+use crate::NotTrainedError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 
 #[pyclass]
+#[derive(Debug)]
 pub struct Perceptron {
-    samples: Vec<Sample>,
     learning_rate: f64,
-    weights: Vec<f64>, // TODO: make options
-    bias: f64,
+    weights: Option<Vec<f64>>,
+    bias: Option<f64>,
 
     /// used to map the sample's labels to 0 and 1 (e.g. "red" -> 0, "blue" -> 1)
-    label_to_num: HashMap<String, i8>,
+    label_to_num: Option<HashMap<String, i8>>,
 
     /// used to map 0 and 1 to the sample's labels (e.g. "red" -> 0, "blue" -> 1)
-    num_to_label: HashMap<i8, String>,
+    num_to_label: Option<HashMap<i8, String>>,
 }
-
+//TODO confirm python's pcptrn.weights returns the actual weights
 #[pymethods]
 impl Perceptron {
     #[new]
-    fn new(samples: Vec<Sample>, learning_rate: f64) -> PyResult<Self> {
-        Self::check_samples_ok(&samples)?;
-        let weights = Self::create_weights(&samples);
-        let bias = Self::create_bias();
-        let label_to_num = Self::create_label_to_num(&samples);
-        let num_to_label = label_to_num
-            .iter()
-            .map(|(k, &v)| (v, k.clone()))
-            .collect::<HashMap<i8, String>>();
+    fn new(learning_rate: f64) -> PyResult<Self> {
         Ok(Self {
-            samples,
             learning_rate,
-            weights,
-            bias,
-            label_to_num,
-            num_to_label,
+            weights: None,
+            bias: None,
+            label_to_num: None,
+            num_to_label: None,
         })
-    }
-
-    #[getter]
-    fn get_samples(&self) -> Vec<Sample> {
-        self.samples.clone()
-    }
-
-    #[getter]
-    fn get_weights(&self) -> Vec<f64> {
-        self.weights.clone()
-    }
-
-    #[getter]
-    fn get_bias(&self) -> f64 {
-        self.bias
     }
 
     #[getter]
@@ -60,19 +37,24 @@ impl Perceptron {
         self.learning_rate
     }
 
-    #[setter]
-    fn set_samples(&mut self, value: Vec<Sample>) {
-        self.samples = value;
+    #[getter]
+    fn get_weights(&self) -> PyResult<Vec<f64>> {
+        if let Some(weights) = self.weights.as_ref() {
+            return Ok(weights.clone());
+        }
+        Err(PyErr::new::<NotTrainedError, _>(
+            ".train() must be called before 'weights' can be accessed",
+        ))
     }
 
-    #[setter]
-    fn set_weights(&mut self, value: Vec<f64>) {
-        self.weights = value;
-    }
-
-    #[setter]
-    fn set_bias(&mut self, value: f64) {
-        self.bias = value;
+    #[getter]
+    fn get_bias(&self) -> PyResult<f64> {
+        if let Some(bias) = self.bias {
+            return Ok(bias);
+        }
+        Err(PyErr::new::<NotTrainedError, _>(
+            ".train() must be called before 'bias' can be accessed",
+        ))
     }
 
     #[setter]
@@ -80,26 +62,70 @@ impl Perceptron {
         self.learning_rate = value;
     }
 
-    pub fn train(&mut self, n_epochs: usize) {
-        for _ in 0..n_epochs {
-            self.train_for_one_epoch();
-        }
+    #[setter]
+    fn set_weights(&mut self, value: Vec<f64>) {
+        self.weights = Some(value);
     }
 
-    pub fn predict(&self, sample: &Sample) -> String {
-        self.num_to_label
-            .get(&self.predict_num(sample))
+    #[setter]
+    fn set_bias(&mut self, value: f64) {
+        self.bias = Some(value);
+    }
+
+    #[args(samples, n_epochs, reinitialize_params = "false")]
+    pub fn train(
+        &mut self,
+        samples: Vec<Sample>,
+        n_epochs: usize,
+        reinitialize_params: bool,
+    ) -> PyResult<()> {
+        Self::check_samples_ok(&samples)?;
+        if reinitialize_params || self.weights.is_none() || self.bias.is_none() {
+            self.initialize_params(&samples);
+        }
+        for _ in 0..n_epochs {
+            self.train_for_one_epoch(&samples)?;
+        }
+        Ok(())
+    }
+
+    pub fn predict(&self, sample: &Sample) -> PyResult<&String> {
+        if self.num_to_label.is_none() {
+            return Err(PyErr::new::<NotTrainedError, _>(
+                ".train() must be called before predicting",
+            ));
+        }
+        Ok(self
+            .num_to_label
+            .as_ref()
             .unwrap()
-            .clone()
+            .get(&self.predict_num(sample)?)
+            .unwrap())
     }
 }
 
 impl Perceptron {
-    fn create_weights(samples: &[Sample]) -> Vec<f64> {
-        vec![1.0; samples[0].get_tensor().len()]
+    fn initialize_params(&mut self, samples: &[Sample]) {
+        self.weights = Some(Self::create_weights(&samples));
+        self.bias = Some(Self::create_bias(&samples));
+        self.label_to_num = Some(Self::create_label_to_num(&samples));
+        self.num_to_label = Some(
+            self.label_to_num
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (*v, k.clone()))
+                .collect::<HashMap<i8, String>>(),
+        );
     }
 
-    fn create_bias() -> f64 {
+    /// Initializes `weights` to a `Vec` of `1.0`s of that matches the length of `samples`.  
+    fn create_weights(samples: &[Sample]) -> Vec<f64> {
+        vec![1.0; samples[0].get_tensor_len()]
+    }
+
+    /// Initializes bias to 0.0 (`_samples` is not currently used)
+    fn create_bias(_samples: &[Sample]) -> f64 {
         0.0
     }
 
@@ -149,9 +175,9 @@ impl Perceptron {
     /// Returns `Err(PyValueError)` if the samples in `samples` have tensors of differing length;
     /// otherwise returns `Ok(())`.
     fn check_tensors_ok(samples: &[Sample]) -> PyResult<()> {
-        let shape = samples[0].get_tensor().len();
+        let shape = samples[0].get_tensor_len();
         for sample in &samples[1..] {
-            if sample.get_tensor().len() != shape {
+            if sample.get_tensor_len() != shape {
                 return Err(PyErr::new::<PyValueError, _>(
                     "all tensors in 'samples' must have the same length",
                 ));
@@ -163,60 +189,55 @@ impl Perceptron {
 
 /// Implements helper function to interact with this perceptron's parameters (`weights`, `bias`)
 impl Perceptron {
-    fn predict_num(&self, sample: &Sample) -> i8 {
-        let z = self.dot_weights_with(sample) + self.bias;
-        if z < 0.0 {
-            0
-        } else {
-            1
+    fn predict_num(&self, sample: &Sample) -> PyResult<i8> {
+        if self.weights.is_none() || self.bias.is_none() {
+            return Err(PyErr::new::<NotTrainedError, _>(
+                ".train() must be called before predicting",
+            ));
         }
-    }
-    fn train_for_one_epoch(&mut self) {
-        for sample in &self.samples.clone() {
-            self.update_params(sample);
+        let z = self
+            .weights
+            .as_ref()
+            .unwrap()
+            .dot(sample.get_tensor_as_ref())
+            + self.bias.unwrap();
+        if z < 0.0 {
+            Ok(0)
+        } else {
+            Ok(1)
         }
     }
 
-    fn update_params(&mut self, sample: &Sample) {
-        let weight_change_factor = self.get_weight_change_factor(sample);
-        for (weight, &component) in self.weights.iter_mut().zip(sample.get_tensor().iter()) {
+    fn train_for_one_epoch(&mut self, samples: &[Sample]) -> PyResult<()> {
+        for sample in samples {
+            self.update_params(sample)?;
+        }
+        Ok(())
+    }
+
+    fn update_params(&mut self, sample: &Sample) -> PyResult<()> {
+        let weight_change_factor = self.calculate_wcf(sample)?;
+        for (weight, &component) in self
+            .weights
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .zip(sample.get_tensor().iter())
+        {
             *weight += weight_change_factor * component;
         }
-        self.bias += weight_change_factor;
+        *self.bias.as_mut().unwrap() += weight_change_factor;
+        Ok(())
     }
 
-    fn get_weight_change_factor(&self, sample: &Sample) -> f64 {
-        let prediction = self.predict_num(sample);
-        let actual = self.label_to_num[sample.get_label()];
+    /// Calculate the _weight change factor_ for this `sample`.
+    fn calculate_wcf(&self, sample: &Sample) -> PyResult<f64> {
+        let prediction = self.predict_num(sample)?;
+        let actual = self.label_to_num.as_ref().unwrap()[sample.get_label()];
         let multiplier = (actual - prediction) as f64;
         //  multiplier is 0.0 if prediction is correct
         //               -1.0 if prediction is too big
         //                1.0 if prediction is too small
-        multiplier * self.learning_rate
-    }
-
-    fn dot_weights_with(&self, sample: &Sample) -> f64 {
-        self.weights
-            .iter()
-            .zip(sample.get_tensor().iter())
-            .map(|(&weight, &component)| weight * component)
-            .sum()
-    }
-}
-
-impl fmt::Display for Perceptron {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("Perceptron")
-            .field(&self.samples)
-            .field(&self.weights)
-            .field(&self.bias)
-            .field(&self.learning_rate)
-            .finish()
-    }
-}
-
-impl fmt::Debug for Perceptron {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
+        Ok(multiplier * self.learning_rate)
     }
 }

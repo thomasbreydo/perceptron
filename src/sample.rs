@@ -24,6 +24,10 @@ impl Sample {
         self.tensor.clone()
     }
 
+    pub fn get_tensor_len(&self) -> usize {
+        self.tensor.len()
+    }
+
     #[getter]
     pub fn get_label(&self) -> &str {
         &self.label
@@ -35,6 +39,12 @@ impl PyObjectProtocol for Sample {
     // ^^^^^^^^^^^^^^ if this shows [E0277], it's actually fine
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("{}", self))
+    }
+}
+
+impl Sample {
+    pub fn get_tensor_as_ref(&self) -> &Vec<f64> {
+        &self.tensor
     }
 }
 
