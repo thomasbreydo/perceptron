@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "perceptron-rs"
-version = "0.1.2"
+version = "0.1.3"
 description = "A perceptron written in Rust, with bindings to Python."
 authors = ["Thomas Breydo <tbreydo@gmail.com>"]
 
