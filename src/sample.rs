@@ -5,27 +5,27 @@ use std::fmt;
 #[pyclass]
 #[derive(Clone)]
 pub struct Sample {
-    tensor: Vec<f64>,
+    feature_vector: Vec<f64>,
     label: String,
 }
 
 #[pymethods]
 impl Sample {
     #[new]
-    pub fn new(tensor: Vec<f64>, label: &str) -> PyResult<Self> {
+    pub fn new(feature_vector: Vec<f64>, label: &str) -> PyResult<Self> {
         Ok(Self {
-            tensor,
+            feature_vector,
             label: label.to_string(),
         })
     }
 
     #[getter]
-    pub fn get_tensor(&self) -> Vec<f64> {
-        self.tensor.clone()
+    pub fn get_feature_vector(&self) -> Vec<f64> {
+        self.feature_vector.clone()
     }
 
-    pub fn get_tensor_len(&self) -> usize {
-        self.tensor.len()
+    pub fn get_n_features(&self) -> usize {
+        self.feature_vector.len()
     }
 
     #[getter]
@@ -43,15 +43,15 @@ impl PyObjectProtocol for Sample {
 }
 
 impl Sample {
-    pub fn get_tensor_as_ref(&self) -> &Vec<f64> {
-        &self.tensor
+    pub fn get_feature_vector_as_ref(&self) -> &Vec<f64> {
+        &self.feature_vector
     }
 }
 
 impl fmt::Display for Sample {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("Sample")
-            .field(&self.tensor)
+            .field(&self.feature_vector)
             .field(&self.label)
             .finish()
     }

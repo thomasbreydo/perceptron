@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "perceptron"
+name = "perceptron-rs"
 version = "0.1.0"
 description = ""
 authors = ["Thomas Breydo <tbreydo@gmail.com>"]

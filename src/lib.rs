@@ -10,7 +10,7 @@ pub use sample::Sample;
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn perceptron(py: Python, m: &PyModule) -> PyResult<()> {
+fn perceptron_rs(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Sample>()?;
     m.add_class::<Perceptron>()?;
     m.add("NotTrainedError", py.get_type::<NotTrainedError>())?;

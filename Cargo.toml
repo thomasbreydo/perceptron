@@ -1,10 +1,11 @@
 [package]
-name = "perceptron"
+name = "perceptron-rs"
 version = "0.1.0"
 authors = ["Thomas Breydo <tbreydo@gmail.com>"]
 edition = "2018"
 
 [lib]
+name = "perceptron_rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

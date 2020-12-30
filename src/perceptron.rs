@@ -18,7 +18,7 @@ pub struct Perceptron {
     /// used to map 0 and 1 to the sample's labels (e.g. "red" -> 0, "blue" -> 1)
     num_to_label: Option<HashMap<i8, String>>,
 }
-//TODO confirm python's pcptrn.weights returns the actual weights
+
 #[pymethods]
 impl Perceptron {
     #[new]
@@ -121,7 +121,7 @@ impl Perceptron {
 
     /// Initializes `weights` to a `Vec` of `1.0`s of that matches the length of `samples`.  
     fn create_weights(samples: &[Sample]) -> Vec<f64> {
-        vec![1.0; samples[0].get_tensor_len()]
+        vec![1.0; samples[0].get_n_features()]
     }
 
     /// Initializes bias to 0.0 (`_samples` is not currently used)
@@ -175,9 +175,9 @@ impl Perceptron {
     /// Returns `Err(PyValueError)` if the samples in `samples` have tensors of differing length;
     /// otherwise returns `Ok(())`.
     fn check_tensors_ok(samples: &[Sample]) -> PyResult<()> {
-        let shape = samples[0].get_tensor_len();
+        let shape = samples[0].get_n_features();
         for sample in &samples[1..] {
-            if sample.get_tensor_len() != shape {
+            if sample.get_n_features() != shape {
                 return Err(PyErr::new::<PyValueError, _>(
                     "all tensors in 'samples' must have the same length",
                 ));
@@ -187,7 +187,7 @@ impl Perceptron {
     }
 }
 
-/// Implements helper function to interact with this perceptron's parameters (`weights`, `bias`)
+/// Implements helper function to interact with this perceptron-rs's parameters (`weights`, `bias`)
 impl Perceptron {
     fn predict_num(&self, sample: &Sample) -> PyResult<i8> {
         if self.weights.is_none() || self.bias.is_none() {
@@ -199,7 +199,7 @@ impl Perceptron {
             .weights
             .as_ref()
             .unwrap()
-            .dot(sample.get_tensor_as_ref())
+            .dot(sample.get_feature_vector_as_ref())
             + self.bias.unwrap();
         if z < 0.0 {
             Ok(0)
@@ -222,7 +222,7 @@ impl Perceptron {
             .as_mut()
             .unwrap()
             .iter_mut()
-            .zip(sample.get_tensor().iter())
+            .zip(sample.get_feature_vector_as_ref().iter())
         {
             *weight += weight_change_factor * component;
         }
