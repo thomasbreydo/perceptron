@@ -83,7 +83,10 @@ impl Perceptron {
         if reinitialize_params || self.weights.is_none() || self.bias.is_none() {
             self.initialize_params(&samples);
         }
+        let gil = Python::acquire_gil();
+        let py = gil.python();
         for _ in 0..n_epochs {
+            py.check_signals()?;
             self.train_for_one_epoch(&samples)?;
         }
         Ok(())
