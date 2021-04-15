@@ -1,5 +1,5 @@
-perceptron-rs
-=============
+Rust/Python Binary Classifier
+=============================
 
 This is a mini-project in which I create a perceptron from scratch in Rust and create bindings to use it in Python. The
 perceptron learns using the perceptron learning rule.
