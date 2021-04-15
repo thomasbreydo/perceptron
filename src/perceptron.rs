@@ -15,7 +15,7 @@ pub struct Perceptron {
     /// used to map the sample's labels to 0 and 1 (e.g. "red" -> 0, "blue" -> 1)
     label_to_num: Option<HashMap<String, i8>>,
 
-    /// used to map 0 and 1 to the sample's labels (e.g. "red" -> 0, "blue" -> 1)
+    /// used to map 0 and 1 to the sample's labels (e.g. 0 -> "red", 1 -> "blue")
     num_to_label: Option<HashMap<i8, String>>,
 }
 
